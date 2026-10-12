@@ -1,2 +1,2 @@
 import Link from "next/link";
-export default function Page(){return <section className="placeholder"><span className="eyebrow dark">ADMINISTRATION</span><h1>관리자 대시보드</h1><p>가입 신청을 확인하고 새로운 회원을 맞이해 주세요.</p><Link className="button green" href="/admin/members">회원 가입 관리</Link></section>;}
+export default function Page(){return <section className="content-section"><span className="eyebrow dark">ADMINISTRATION</span><h1>관리자 대시보드</h1><p>회원 가입과 닉네임 요청을 처리하고, 공통 질문을 관리해 주세요.</p><div className="home-menu-grid admin-dashboard"><Link className="home-menu-card" href="/admin/members"><strong>회원·닉네임 승인</strong><small>가입 및 이름 변경 요청 확인</small></Link><Link className="home-menu-card" href="/admin/questions"><strong>질문 관리</strong><small>카테고리와 질문 등록 · 답변 관리</small></Link></div></section>;}

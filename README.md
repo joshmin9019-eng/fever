@@ -1,4 +1,4 @@
-# FEVER · Phase 2 코드 준비
+# FEVER · 회원 소개와 질문 답변
 
 Next.js App Router / TypeScript / Tailwind / Supabase. 제품 기준은 [PRD v1.1](docs/FEVER_PRD_v1.1.md)이며, 추가 확정 사항은 [Phase 2 정책](docs/PHASE2_DECISIONS.md)입니다.
 
@@ -16,14 +16,14 @@ npm run dev
 ## Supabase 연결 시 수행
 
 1. `.env.example`을 `.env.local`로 복사하고 URL/publishable key를 설정합니다. service role 키는 사용하지 않습니다.
-2. 신규 Supabase 프로젝트에 `supabase/migrations/202610120001_membership.sql`을 SQL editor 또는 migration 도구로 적용합니다. 이미 동일 테이블/bucket이 있는 프로젝트에는 사전 검토 없이 적용하지 마세요.
+2. 신규 Supabase 프로젝트에 `supabase/migrations/202610120001_membership.sql`을 적용합니다. 기존 FEVER 프로젝트에는 이미 적용되어 있습니다. 프로필·질문 기능을 사용하기 전에 `supabase/migrations/202610120002_profiles_questions.sql`을 **한 번만** SQL Editor에서 실행합니다. 같은 마이그레이션을 반복 실행하면 테이블 중복 오류가 발생합니다.
 3. Auth에서 Email provider는 켜고 **Confirm email은 끕니다**. 최신 사용자 결정에 따라 별도 이메일 확인 없이 계정 생성 세션으로 가입정보를 입력합니다. 비밀번호 최소 길이는 8자 이상으로 설정합니다. 기존 미인증 계정은 설정 변경 후에도 로그인에 제한이 있을 수 있으므로 운영자가 Auth 계정 상태를 확인해야 합니다.
 4. 가입 확인 이메일을 token hash 방식으로 사용하는 경우 템플릿 링크를 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup`으로 설정합니다. PKCE callback 방식도 제공됩니다. 비밀번호 재설정은 `/forgot-password`에서 요청하고 `/auth/recovery`에서 인증한 뒤 `/account/reset-password`에서 처리합니다.
 5. `/terms`, `/privacy`에 기본 안내가 포함되어 있습니다. 계정 생성 단계에서 두 필수 동의 체크박스를 선택합니다. 동의한 문서 버전과 시각을 계정의 본인 신고 동의 정보로 보관하고, 같은 버전이면 프로필 입력 단계에서는 체크박스를 다시 표시하지 않습니다. 과거 계정의 동의 정보가 없거나 문서 버전이 바뀐 경우에만 프로필 단계에서 동의를 받습니다. 동의 메타데이터를 회원 승인이나 관리자 역할 판단에 사용하지 않습니다. 가입 신청에는 문서 버전과 동의 시각이 기록됩니다. 별도 정식 문서를 사용할 경우 `FEVER_*` 변수로 HTTPS URL과 버전을 지정할 수 있습니다. 운영자 연락처·실제 처리 지역 등 추가 고지 사항은 정식 운영 전 보완해야 합니다.
 6. 신뢰할 수 있는 운영자 계정으로 사진 포함 가입 신청을 완료한 후 `supabase/bootstrap-super-admin.sql`의 UUID를 실제 계정 UUID로 바꾸고 SQL editor에서 최초 1회 실행합니다. 이미 최고 관리자가 있으면 실패하도록 구성했습니다.
 7. 서로 다른 회원·미승인·반려·정지·관리자 계정으로 API/Storage/RLS를 실제 Supabase에서 검증합니다. Confirm email을 끄면 Supabase가 신규 계정을 자동 확인 처리하므로 기존 DB의 인증 상태 검사와 호환됩니다. DB의 `pending_email` 상태명은 하위 호환을 위해 유지하며 UI에서는 프로필 미완료로 표시합니다.
 
-현재 사용자의 요청에 따라 외부 프로젝트 생성, migration 적용, 이메일 발송 또는 배포는 수행하지 않았습니다.
+FEVER는 `https://fever-amber.vercel.app`에 배포되어 있습니다. 새 마이그레이션은 배포 전에 적용해야 합니다. 앱은 Supabase publishable key를 사용하며 데이터 변경은 로그인 세션·RLS·검증된 RPC로 제한됩니다.
 
 ## 구현
 
@@ -33,7 +33,12 @@ npm run dev
 - 회원·관리자·최고 관리자 서버 guard와 DB RLS. 회원이 상태/역할을 직접 변경할 수 없습니다.
 - 최초 최고 관리자 설정은 운영자의 DB 작업으로 분리했습니다. 일반 웹 사용자에게 권한 자체 부여 API가 없습니다.
 
-프로필·질문·벙 페이지는 접근 제어가 적용된 준비 화면입니다. 닉네임 변경, 정지/복구 UI, 역할 변경/마지막 최고 관리자 보호, 탈퇴, 질문 및 벙 로직은 후속 단계입니다. 현재는 이 작업들을 위한 변경 API를 제공하지 않습니다.
+- 프로필: 출생연도·지역·성별(선택)·직업·MBTI·자기소개·사진·관심사를 편집합니다. 남/여 회원 카드에 구분 색을 표시하고, 미설정은 중립 표시합니다. 닉네임 변경은 관리자 승인 전 기존 이름을 유지합니다.
+- 회원 찾기: 승인 회원에게만 최신 가입순 목록과 닉네임·지역·직업·MBTI·나이대·관심사 필터를 제공합니다. 다른 회원의 프로필과 누적 공개 답변을 볼 수 있습니다.
+- 질문: 관리자가 카테고리와 주관식·단일 선택 객관식·밸런스게임 질문을 등록하고 비활성화할 수 있습니다. 회원은 질문당 답변 하나를 저장·수정·삭제합니다. 관리자가 숨긴 답변은 회원이 수정·삭제해도 임의로 다시 공개할 수 없습니다.
+- 벙 참여/대기열은 후속 단계입니다. 관리자가 종료 버튼을 누를 때 참석자 명단 잠금, 신청 순서대로 수동 승격, 무제한 정원은 즉시 확정이라는 정책을 사용자가 확정했습니다.
+
+정지/복구, 역할 변경/마지막 최고 관리자 보호, 탈퇴 및 감사 화면은 후속 단계입니다.
 
 ## 검증
 
@@ -43,12 +48,13 @@ npm run lint
 npm run typecheck
 npm run test:db
 npm run test:registration
+npm run test:member-features
 PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:e2e
 ```
 
 시스템 Chromium이 없으면 `npx playwright install chromium` 후 `npm run test:e2e`를 사용하세요. build/typecheck와 dev/E2E 실행은 순서대로 수행하세요. Next.js가 생성하는 `.next` 타입 파일을 동시에 수정하면 검사에 충돌이 생길 수 있습니다.
 
-`test:db`는 PGlite PostgreSQL 엔진에서 migration과 RLS/RPC를 실행합니다. Supabase Auth/Storage의 최소 계약 fixture를 사용하며 실제 서비스 통합 테스트를 대신하지 않습니다. 브라우저 검증은 미연결 상태의 모바일/데스크톱 UI·보호 경로와 권한/파일 검증 함수에 대한 테스트입니다. 실제 가입·사진 저장·관리자 승인 통합은 서비스 연결 후 검증해야 합니다. `test:registration`은 별도 로컬 Next 서버와 Auth/Storage 응답 fixture로 계정 생성→프로필 입력→동의→사진 업로드→승인 대기 전환을 모바일과 데스크톱에서 검증합니다. 실제 회원 계정을 생성하지 않습니다.
+`test:db`는 PGlite PostgreSQL 엔진에서 두 마이그레이션의 RLS/RPC와 질문·답변 상태 전이를 검증합니다. Supabase Auth/Storage의 최소 계약 fixture를 사용하며 실제 서비스 통합 테스트를 대신하지 않습니다. `test:registration`은 로컬 Next 서버와 Auth/Storage 응답 fixture로 계정 생성→프로필 입력→동의→사진 업로드→승인 대기 전환을 검증합니다. `test:member-features`는 모바일 브라우저에서 로그인, 프로필 저장, 성별 표시, 질문 답변, 회원 탐색을 fixture 백엔드로 검증합니다. 실제 회원 계정을 만들지 않습니다.
 
 ## 관리자 계정 로그인과 비밀번호 복구
 

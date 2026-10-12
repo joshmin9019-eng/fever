@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
     "test:db": "node scripts/test-database.mjs",
-    "test:registration": "node scripts/test-registration.mjs"
+    "test:registration": "node scripts/test-registration.mjs",
+    "test:member-features": "node scripts/test-member-features.mjs"
   },
   "repository": {
     "type": "git",
