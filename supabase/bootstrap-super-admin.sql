@@ -3,7 +3,7 @@
 -- 웹에서 관리자 역할을 자체 부여하는 API는 제공하지 않습니다.
 begin;
 do $$
-declare target uuid := '810479c4-a88e-4469-a236-5a17a1fadacd'; req uuid;
+declare target uuid := 'a3e38864-049a-43e4-a446-345580481c3b'; req uuid;
 begin
  perform pg_advisory_xact_lock(7729019);
  if exists(select 1 from public.user_roles where role='super_admin') then raise exception 'SUPER_ADMIN_ALREADY_EXISTS'; end if;
