@@ -67,7 +67,7 @@ assert.equal((await db.query('select * from public.profiles where id=$1',[admin]
 assert.equal((await db.query('select private.is_active() allowed')).rows[0].allowed,false);
 await db.exec('reset role');
 await db.exec("delete from public.user_roles where role='super_admin'");
-const bootstrap=(await readFile(new URL('../supabase/bootstrap-super-admin.sql',import.meta.url),'utf8')).replace('REPLACE_WITH_VERIFIED_USER_UUID',b);
+const bootstrap=(await readFile(new URL('../supabase/bootstrap-super-admin.sql',import.meta.url),'utf8')).replace(/declare target uuid := '[^']+'/, `declare target uuid := '${b}'`);
 await db.exec(bootstrap);
 assert.equal((await db.query("select role from public.user_roles where user_id=$1 and role='super_admin'",[b])).rows.length,1);
 await assert.rejects(()=>db.exec(bootstrap));
