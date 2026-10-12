@@ -10,8 +10,9 @@ const idealId='00000000-0000-0000-0000-000000000037';
 const user={id,aud:'authenticated',role:'authenticated',email:'member@example.test',email_confirmed_at:new Date().toISOString(),app_metadata:{provider:'email',providers:['email']},user_metadata:{},created_at:new Date().toISOString()};
 const b64=value=>Buffer.from(JSON.stringify(value)).toString('base64url');
 const accessToken=`${b64({alg:'HS256',typ:'JWT'})}.${b64({sub:id,aud:'authenticated',role:'authenticated',exp:Math.floor(Date.now()/1000)+3600})}.fixture`;
-let profileSave=null,answerSave=null,questionCreated=null,idealSave=null,isAdmin=false;
+let profileSave=null,answerSave=null,questionCreated=null,idealSave=null,selfSave=null,isAdmin=false;
 const profile={id,nickname:'민지',membership_status:'active',birth_year:1997,region:'서울',gender:'female',job:'디자이너',mbti:'INFP',bio:'책과 여행을 좋아해요.',avatar_path:null,joined_at:new Date().toISOString()};
+const otherProfile={...profile,id:otherId,nickname:'준호',gender:'male',mbti:'ENFP',job:'개발자'};
 const question={id:questionId,title:'나를 한 문장으로 소개한다면?',type:'text',is_active:true,sort_order:0,question_categories:{name:'우리 이야기',sort_order:0},question_options:[]};
 const backend=createServer(async(req,res)=>{
  let body='';for await(const chunk of req)body+=chunk.toString();
@@ -23,13 +24,18 @@ const backend=createServer(async(req,res)=>{
  };
  if(path==='/auth/v1/token'){res.end(JSON.stringify({access_token:accessToken,token_type:'bearer',expires_in:3600,refresh_token:'test-refresh-token',user}));}
  else if(path==='/auth/v1/user')res.end(JSON.stringify(user));
- else if(path==='/rest/v1/profiles')output([profile]);
+ else if(path==='/rest/v1/profiles')output(url.searchParams.get('mbti')==='eq.INTJ'?[]:url.searchParams.get('select')?.includes('joined_at')?[profile,otherProfile]:[profile]);
  else if(path==='/rest/v1/user_roles')output([{role:isAdmin?'admin':'member'}]);
  else if(path==='/rest/v1/interests')output([{id:categoryId,label:'여행',is_active:true,sort_order:1}]);
  else if(path==='/rest/v1/profile_interests')output([]);
  else if(path==='/rest/v1/nickname_change_requests')output([]);
  else if(path==='/rest/v1/ideal_type_options')output([{id:idealId,category:'분위기',label:'고양이상',sort_order:1,is_active:true}]);
  else if(path==='/rest/v1/profile_ideal_types')output(idealSave?[{option_id:idealId,ideal_type_options:{category:'분위기',label:'고양이상',sort_order:1}}]:[]);
+ else if(path==='/rest/v1/profile_self_types'){
+  const selection=url.searchParams.get('select')??'';
+  const item=user_id=>({user_id,option_id:idealId,ideal_type_options:selection.includes('category')?{category:'분위기',label:'고양이상',sort_order:1}:{label:'고양이상'}});
+  output(selfSave?(url.searchParams.get('user_id')?.startsWith('in.')?[item(id),item(otherId)]:[item(id)]):[]);
+ }
  else if(path==='/rest/v1/question_categories')output([{id:categoryId,name:'우리 이야기',is_active:true,sort_order:0}]);
  else if(path==='/rest/v1/daily_attendance')output(answerSave?[{question_id:questionId}]:[]);
  else if(path==='/rest/v1/questions'){
@@ -50,6 +56,7 @@ const backend=createServer(async(req,res)=>{
  else if(path==='/rest/v1/rpc/update_my_profile'){profileSave=JSON.parse(body);res.end('null');}
  else if(path==='/rest/v1/rpc/save_answer'){answerSave=JSON.parse(body);res.end('null');}
  else if(path==='/rest/v1/rpc/save_my_ideal_types'){idealSave=JSON.parse(body);res.end('null');}
+ else if(path==='/rest/v1/rpc/save_my_self_types'){selfSave=JSON.parse(body);res.end('null');}
  else if(path==='/rest/v1/rpc/create_question'){questionCreated=JSON.parse(body);res.end(JSON.stringify(questionId));}
  else{res.statusCode=404;res.end(JSON.stringify({error:'Unsupported fixture route: '+path}));}
 });
@@ -91,13 +98,19 @@ try{
  await page.getByText('프로필을 저장했습니다.').waitFor();
  assert.equal(profileSave.p_region,'부산');
  assert.deepEqual(profileSave.p_interest_ids,[categoryId]);
- await page.getByLabel('고양이상').check();
+ await page.locator('input[name="idealTypeId"]').check();
  await page.getByRole('button',{name:'이상형 취향 저장'}).click();
  await page.getByText('이상형 취향을 저장했습니다.').waitFor();
  assert.deepEqual(idealSave.p_option_ids,[idealId]);
+ await page.getByRole('heading',{name:'나를 나타내는 스타일'}).waitFor();
+ await page.locator('input[name="selfTypeId"]').check();
+ await page.getByRole('button',{name:'내 스타일 저장'}).click();
+ await page.getByText('내 스타일을 저장했습니다.').waitFor();
+ assert.deepEqual(selfSave.p_option_ids,[idealId]);
  await page.goto('http://127.0.0.1:3106/profile');
  await page.getByRole('heading',{name:'마음이 가는 스타일'}).waitFor();
- await page.getByText('고양이상').waitFor();
+ await page.getByText('고양이상').first().waitFor();
+ await page.getByRole('heading',{name:'나를 나타내는 스타일'}).waitFor();
  await page.goto('http://127.0.0.1:3106/questions');
  await page.getByRole('link',{name:/나를 한 문장으로 소개한다면/}).click();
  await page.getByLabel('내 답변').fill('저는 책을 좋아하는 사람입니다.');
@@ -110,6 +123,12 @@ try{
  await page.goto('http://127.0.0.1:3106/members');
  await page.getByText('민지').waitFor();
  assert.equal(await page.locator('.member-card.gender-female').count(),1);
+ await page.locator('.member-card').getByText('MBTI INFP').waitFor();
+ await page.locator('.member-card.gender-male').getByText('내 취향과 1개 겹침').waitFor();
+ assert.equal(await page.locator('.member-card.gender-female').getByText('내 취향과 1개 겹침').count(),0);
+ await page.getByRole('combobox',{name:'MBTI'}).selectOption('INTJ');
+ await page.getByRole('button',{name:'찾기'}).click();
+ await page.getByText('조건에 맞는 회원이 없습니다.').waitFor();
  await page.goto(`http://127.0.0.1:3106/members/${id}/answers`);
  await page.getByText('저는 책을 좋아하는 사람입니다.').waitFor();
  isAdmin=true;
@@ -122,7 +141,7 @@ try{
  await page.getByRole('button',{name:'질문 등록'}).click();
  await page.getByText('질문을 등록했습니다.').waitFor();
  assert.deepEqual(questionCreated.p_option_labels,['아침형','저녁형']);
- console.log('Member features passed (mobile): daily question/check-in display, distinct home menus, conversation discovery, profile and ideal-type save/display, question answer, member search, public answer page, and admin question setup. Backend responses are fixtures.');
+ console.log('Member features passed (mobile): daily question/check-in display, profile self/ideal styles, MBTI card/filter, style overlap, conversation discovery, answers, and admin question setup. Backend responses are fixtures.');
 }finally{
  if(browser)await browser.close();
  next.kill('SIGTERM');
