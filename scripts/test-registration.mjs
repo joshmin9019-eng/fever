@@ -95,8 +95,14 @@ try{
  await loginPage.getByRole('alert').filter({hasText:'email_not_confirmed'}).waitFor();
  loginMode='success';await loginPage.getByRole('button',{name:'로그인',exact:true}).click();
  await loginPage.waitForURL('**/pending');await loginPage.getByRole('heading',{name:'가입 승인 대기'}).waitFor();
+ await loginPage.goto('http://127.0.0.1:3102/account/status');
+ await loginPage.getByRole('heading',{name:'현재 로그인 계정'}).waitFor();
+ assert.ok(await loginPage.getByText(id,{exact:true}).isVisible());
+ assert.ok(await loginPage.getByText(user.email,{exact:true}).isVisible());
+ assert.ok(await loginPage.getByText('등록된 권한 없음',{exact:true}).isVisible());
  await loginContext.close();
  const recoveryContext=await browser.newContext();const recoveryPage=await recoveryContext.newPage();
+ await recoveryPage.goto('http://127.0.0.1:3102/account/status');assert.match(recoveryPage.url(),/\/login/);
  await recoveryPage.goto('http://127.0.0.1:3102/account/reset-password');assert.match(recoveryPage.url(),/\/login/);
  await recoveryPage.goto('http://127.0.0.1:3102/forgot-password');
  await recoveryPage.getByLabel('가입한 이메일').fill(user.email);

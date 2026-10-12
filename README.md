@@ -55,3 +55,7 @@ PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:e2e
 최초 관리자 SQL은 대상 계정을 가입 승인하고 최고관리자 역할을 부여합니다. 성공했을 때 넣은 UID의 이메일로 로그인해야 합니다. 비밀번호는 FEVER 가입 시 만든 값을 사용합니다. UID 변경은 로그인 비밀번호를 변경하지 않습니다.
 
 비밀번호를 잊었으면 `/forgot-password`에서 재설정 메일을 요청합니다. Supabase Auth URL Configuration에 Site URL과 `<서비스주소>/auth/recovery`를 등록해야 합니다. PKCE 메일 링크는 요청한 브라우저에서 열어야 합니다. 다른 브라우저에서 사용하는 token hash 방식이 필요하면 Reset Password 이메일 템플릿을 `{{ .SiteURL }}/auth/recovery?token_hash={{ .TokenHash }}&type=recovery`로 설정할 수 있습니다. 확인 코드는 서버에서 검증하고 실패·만료 시 새 메일을 요청하도록 안내합니다. 회원 프로필·승인 상태·역할은 변경하지 않습니다. 로그인 오류는 이메일/비밀번호 불일치, 기존 미인증 계정, 이용 제한 등을 구분하고 서버 로그에는 코드/상태만 기록합니다. 이메일·비밀번호·인증 토큰은 기록하지 않습니다.
+
+## 로그인은 되지만 관리자 화면에 접근하지 못할 때
+
+로그인한 상태에서 `/account/status`를 열면 본인 이메일, UID, 가입 상태, 등록된 역할을 확인할 수 있습니다. 이 페이지는 본인 정보만 조회하며 가입 승인이나 역할을 변경하지 않습니다. `supabase/inspect-membership.sql`은 운영자의 SQL Editor에서 대상 계정의 상태와 최고관리자 존재 여부를 조회하는 용도입니다. 비밀번호 초기화는 승인 상태/역할을 변경하지 않습니다. 다른 UID로 최초 관리자 SQL을 반복 실행하지 말고 먼저 실제 로그인 UID와 등록 상태를 확인하세요.

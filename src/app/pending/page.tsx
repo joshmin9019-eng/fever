@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {redirect} from "next/navigation";
 import {requireUser} from "@/lib/auth/session";
 import {logout} from "@/app/login/actions";
@@ -12,5 +13,5 @@ export default async function Page(){
  if(profile?.membership_status==='rejected')redirect('/account/rejected');
  if(['suspended','deleted'].includes(profile?.membership_status))redirect('/account/suspended');
  const incomplete=profile?.membership_status==='pending_email';const legal=legalConfig();
- return <section className="auth-section"><span className="eyebrow dark">YOUR MEMBERSHIP</span><h1>{incomplete?"나를 소개해 주세요":"가입 승인 대기"}</h1><p>{incomplete?"사진과 기본 정보를 입력하면 가입 신청이 완료됩니다.":"관리자의 승인을 기다리고 있습니다. 승인 전에는 회원 전용 정보를 열람할 수 없습니다."}</p>{incomplete&&<RegistrationForm termsUrl={legal.termsUrl} privacyUrl={legal.privacyUrl} available={legal.ready} consentRecorded={hasCurrentConsent(user.user_metadata,legal)}/>}<form action={logout}><button className="button green" style={{marginTop:24}}>로그아웃</button></form></section>;
+ return <section className="auth-section"><span className="eyebrow dark">YOUR MEMBERSHIP</span><h1>{incomplete?"나를 소개해 주세요":"가입 승인 대기"}</h1><p>{incomplete?"사진과 기본 정보를 입력하면 가입 신청이 완료됩니다.":"관리자의 승인을 기다리고 있습니다. 승인 전에는 회원 전용 정보를 열람할 수 없습니다."}</p>{incomplete&&<RegistrationForm termsUrl={legal.termsUrl} privacyUrl={legal.privacyUrl} available={legal.ready} consentRecorded={hasCurrentConsent(user.user_metadata,legal)}/>}<Link className="text-link" href="/account/status">로그인 계정 확인</Link><form action={logout}><button className="button green" style={{marginTop:24}}>로그아웃</button></form></section>;
 }
