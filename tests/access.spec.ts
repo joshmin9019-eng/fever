@@ -20,3 +20,13 @@ test('nickname and upload validation enforce confirmed policy',()=>{
  expect(validAvatar(new TextEncoder().encode('<svg/>'),'image/png')).toBe(false);
  expect(validAvatar(new Uint8Array(5*1024*1024+1),'image/jpeg')).toBe(false);
 });
+
+import {hasCurrentConsent} from '../src/lib/auth/consent';
+test('only recorded consent for both current documents skips the profile checks',()=>{
+ const versions={termsVersion:'v1',privacyVersion:'v1'};
+ const signup_consent={terms_accepted:true,privacy_accepted:true,terms_version:'v1',privacy_version:'v1',accepted_at:'2026-10-12T00:00:00Z'};
+ expect(hasCurrentConsent({signup_consent},versions)).toBe(true);
+ for(const changed of [{terms_accepted:false},{privacy_version:'old'},{terms_version:'old'},{accepted_at:'invalid'}])expect(hasCurrentConsent({signup_consent:{...signup_consent,...changed}},versions)).toBe(false);
+ expect(hasCurrentConsent(undefined,versions)).toBe(false);
+ expect(hasCurrentConsent({signup_consent:'invalid'},versions)).toBe(false);
+});

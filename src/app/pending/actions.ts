@@ -2,6 +2,7 @@
 import {redirect} from "next/navigation";
 import {requireUser} from "@/lib/auth/session";
 import {validNickname,validAvatar} from "@/lib/auth/registration";
+import {hasCurrentConsent} from "@/lib/auth/consent";
 import {legalConfig} from "@/lib/auth/legal";
 export async function submitRegistration(_previous:{error:string},form:FormData):Promise<{error:string}>{
  const {supabase,user}=await requireUser();
@@ -10,7 +11,7 @@ export async function submitRegistration(_previous:{error:string},form:FormData)
  const year=Number(new Intl.DateTimeFormat('en',{year:'numeric',timeZone:'Asia/Seoul'}).format(new Date()));
  if(!validNickname(nickname))return {error:"닉네임은 한글·영문·숫자·밑줄 2~20자여야 합니다."};
  if(!Number.isInteger(birthYear)||birthYear<1||birthYear>year||!region||region.length>100)return {error:"출생연도와 거주지역을 확인해 주세요."};
- if(form.get("terms")!=="on"||form.get("privacy")!=="on")return {error:"약관 및 개인정보 수집·이용에 동의해 주세요."};
+ if(!hasCurrentConsent(user.user_metadata,legal)&&(form.get("terms")!=="on"||form.get("privacy")!=="on"))return {error:"약관 및 개인정보 수집·이용에 동의해 주세요."};
  const avatar=form.get("avatar");if(!(avatar instanceof File)||avatar.size>5*1024*1024)return {error:"5MB 이하의 JPEG·PNG·WebP 사진이 필요합니다."};
  const bytes=new Uint8Array(await avatar.arrayBuffer());if(!validAvatar(bytes,avatar.type))return {error:"사진 형식과 파일 내용을 확인해 주세요."};
  const extension={"image/jpeg":"jpg","image/png":"png","image/webp":"webp"}[avatar.type];

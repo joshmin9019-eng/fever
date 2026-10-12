@@ -6,11 +6,11 @@ const id='00000000-0000-0000-0000-000000000021';
 const user={id,aud:'authenticated',role:'authenticated',email:'registration@example.test',email_confirmed_at:new Date().toISOString(),app_metadata:{provider:'email',providers:['email']},user_metadata:{},created_at:new Date().toISOString()};
 const b64=value=>Buffer.from(JSON.stringify(value)).toString('base64url');
 const accessToken=`${b64({alg:'HS256',typ:'JWT'})}.${b64({sub:id,aud:'authenticated',role:'authenticated',exp:Math.floor(Date.now()/1000)+3600})}.test`;
-let registered=false,submission=null,signupRequests=0,uploadRequests=0;
+let registered=false,submission=null,signupRequests=0,uploadRequests=0,legacyAccount=false;
 const backend=createServer(async(req,res)=>{
  let body='';for await(const chunk of req)body+=chunk.toString();
  res.setHeader('content-type','application/json');
- if(req.url.startsWith('/auth/v1/signup')){signupRequests++;res.end(JSON.stringify({access_token:accessToken,token_type:'bearer',expires_in:3600,refresh_token:'test-refresh-token',user}));}
+ if(req.url.startsWith('/auth/v1/signup')){signupRequests++;user.user_metadata=legacyAccount?{}:JSON.parse(body).data;res.end(JSON.stringify({access_token:accessToken,token_type:'bearer',expires_in:3600,refresh_token:'test-refresh-token',user}));}
  else if(req.url.startsWith('/auth/v1/user'))res.end(JSON.stringify(user));
  else if(req.url.startsWith('/rest/v1/profiles'))res.end(JSON.stringify([{id,membership_status:registered?'pending_approval':'pending_email'}]));
  else if(req.url.startsWith('/rest/v1/user_roles'))res.end('[]');
@@ -33,7 +33,8 @@ try{
  }
  assert.equal(ready,true,'Next startup');
  browser=await chromium.launch({executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||'/usr/bin/chromium'});
- for(const width of [390,1280]){
+ for(const [width,legacy] of [[390,false],[1280,false],[390,true]]){
+  legacyAccount=legacy;
   registered=false;submission=null;
   const context=await browser.newContext({viewport:{width,height:844}});const page=await context.newPage();
   await page.goto('http://127.0.0.1:3102/signup');
@@ -54,16 +55,20 @@ try{
   await page.getByLabel('거주지역').fill('서울');
   await page.getByLabel('프로필 사진',{exact:true}).setInputFiles({name:'avatar.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aL1sAAAAASUVORK5CYII=','base64')});
   const submit=page.getByRole('button',{name:'가입 승인 신청하기'});
-  assert.equal(await submit.isDisabled(),true);
-  await page.locator('input[name=terms]').check();assert.equal(await submit.isDisabled(),true);
-  await page.locator('input[name=privacy]').check();assert.equal(await submit.isEnabled(),true);
-  assert.equal(await page.getByRole('link',{name:'이용약관',exact:true}).getAttribute('href'),'/terms');
-  assert.equal(await page.getByRole('link',{name:'개인정보 수집·이용 안내',exact:true}).getAttribute('href'),'/privacy');
+  if(legacy){
+   assert.equal(await submit.isDisabled(),true);
+   await page.locator('input[name=terms]').check();assert.equal(await submit.isDisabled(),true);
+   await page.locator('input[name=privacy]').check();assert.equal(await submit.isEnabled(),true);
+  }else{
+   assert.equal(await page.locator('input[type=checkbox]').count(),0);
+   assert.equal(await submit.isEnabled(),true);
+   await page.getByText('가입 단계에서 이용약관과 개인정보 수집·이용에 동의했습니다.',{exact:false}).waitFor();
+  }
   await submit.click();await page.getByRole('heading',{name:'가입 승인 대기'}).waitFor();
   assert.ok(submission);await context.close();
  }
- assert.equal(signupRequests,2);assert.equal(uploadRequests,2);
+ assert.equal(signupRequests,3);assert.equal(uploadRequests,3);
  for(const path of ['/terms','/privacy']){const response=await fetch('http://127.0.0.1:3102'+path);assert.equal(response.status,200);assert.match(await response.text(),/FEVER 운영팀/);}
- console.log('Registration integration passed (mobile + desktop): direct signup session -> profile form -> required consents -> photo upload -> versioned RPC -> pending approval; public legal pages work. Auth/Storage responses are fixtures, not real account creation.');
+ console.log('Registration integration passed (mobile + desktop): direct signup session -> profile form without duplicate consents (legacy users give consent once) -> photo upload -> versioned RPC -> pending approval; public legal pages work. Auth/Storage responses are fixtures, not real account creation.');
 }catch(error){console.error(log.slice(-1500));throw error;}
 finally{await browser?.close();next.kill('SIGTERM');await new Promise(resolve=>backend.close(resolve));}
