@@ -18,7 +18,7 @@ npm run dev
 1. `.env.example`을 `.env.local`로 복사하고 URL/publishable key를 설정합니다. service role 키는 사용하지 않습니다.
 2. 신규 Supabase 프로젝트에 `supabase/migrations/202610120001_membership.sql`을 SQL editor 또는 migration 도구로 적용합니다. 이미 동일 테이블/bucket이 있는 프로젝트에는 사전 검토 없이 적용하지 마세요.
 3. Auth에서 Email provider는 켜고 **Confirm email은 끕니다**. 최신 사용자 결정에 따라 별도 이메일 확인 없이 계정 생성 세션으로 가입정보를 입력합니다. 비밀번호 최소 길이는 8자 이상으로 설정합니다. 기존 미인증 계정은 설정 변경 후에도 로그인에 제한이 있을 수 있으므로 운영자가 Auth 계정 상태를 확인해야 합니다.
-4. 가입 확인 이메일을 token hash 방식으로 사용하는 경우 템플릿 링크를 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup`으로 설정합니다. PKCE callback 방식도 제공됩니다. 복구·비밀번호 재설정은 이번 범위에 포함하지 않았습니다.
+4. 가입 확인 이메일을 token hash 방식으로 사용하는 경우 템플릿 링크를 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup`으로 설정합니다. PKCE callback 방식도 제공됩니다. 비밀번호 재설정은 `/forgot-password`에서 요청하고 `/auth/recovery`에서 인증한 뒤 `/account/reset-password`에서 처리합니다.
 5. `/terms`, `/privacy`에 기본 안내가 포함되어 있습니다. 계정 생성 단계에서 두 필수 동의 체크박스를 선택합니다. 동의한 문서 버전과 시각을 계정의 본인 신고 동의 정보로 보관하고, 같은 버전이면 프로필 입력 단계에서는 체크박스를 다시 표시하지 않습니다. 과거 계정의 동의 정보가 없거나 문서 버전이 바뀐 경우에만 프로필 단계에서 동의를 받습니다. 동의 메타데이터를 회원 승인이나 관리자 역할 판단에 사용하지 않습니다. 가입 신청에는 문서 버전과 동의 시각이 기록됩니다. 별도 정식 문서를 사용할 경우 `FEVER_*` 변수로 HTTPS URL과 버전을 지정할 수 있습니다. 운영자 연락처·실제 처리 지역 등 추가 고지 사항은 정식 운영 전 보완해야 합니다.
 6. 신뢰할 수 있는 운영자 계정으로 사진 포함 가입 신청을 완료한 후 `supabase/bootstrap-super-admin.sql`의 UUID를 실제 계정 UUID로 바꾸고 SQL editor에서 최초 1회 실행합니다. 이미 최고 관리자가 있으면 실패하도록 구성했습니다.
 7. 서로 다른 회원·미승인·반려·정지·관리자 계정으로 API/Storage/RLS를 실제 Supabase에서 검증합니다. Confirm email을 끄면 Supabase가 신규 계정을 자동 확인 처리하므로 기존 DB의 인증 상태 검사와 호환됩니다. DB의 `pending_email` 상태명은 하위 호환을 위해 유지하며 UI에서는 프로필 미완료로 표시합니다.
@@ -49,3 +49,9 @@ PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:e2e
 시스템 Chromium이 없으면 `npx playwright install chromium` 후 `npm run test:e2e`를 사용하세요. build/typecheck와 dev/E2E 실행은 순서대로 수행하세요. Next.js가 생성하는 `.next` 타입 파일을 동시에 수정하면 검사에 충돌이 생길 수 있습니다.
 
 `test:db`는 PGlite PostgreSQL 엔진에서 migration과 RLS/RPC를 실행합니다. Supabase Auth/Storage의 최소 계약 fixture를 사용하며 실제 서비스 통합 테스트를 대신하지 않습니다. 브라우저 검증은 미연결 상태의 모바일/데스크톱 UI·보호 경로와 권한/파일 검증 함수에 대한 테스트입니다. 실제 가입·사진 저장·관리자 승인 통합은 서비스 연결 후 검증해야 합니다. `test:registration`은 별도 로컬 Next 서버와 Auth/Storage 응답 fixture로 계정 생성→프로필 입력→동의→사진 업로드→승인 대기 전환을 모바일과 데스크톱에서 검증합니다. 실제 회원 계정을 생성하지 않습니다.
+
+## 관리자 계정 로그인과 비밀번호 복구
+
+최초 관리자 SQL은 대상 계정을 가입 승인하고 최고관리자 역할을 부여합니다. 성공했을 때 넣은 UID의 이메일로 로그인해야 합니다. 비밀번호는 FEVER 가입 시 만든 값을 사용합니다. UID 변경은 로그인 비밀번호를 변경하지 않습니다.
+
+비밀번호를 잊었으면 `/forgot-password`에서 재설정 메일을 요청합니다. Supabase Auth URL Configuration에 Site URL과 `<서비스주소>/auth/recovery`를 등록해야 합니다. PKCE 메일 링크는 요청한 브라우저에서 열어야 합니다. 다른 브라우저에서 사용하는 token hash 방식이 필요하면 Reset Password 이메일 템플릿을 `{{ .SiteURL }}/auth/recovery?token_hash={{ .TokenHash }}&type=recovery`로 설정할 수 있습니다. 확인 코드는 서버에서 검증하고 실패·만료 시 새 메일을 요청하도록 안내합니다. 회원 프로필·승인 상태·역할은 변경하지 않습니다. 로그인 오류는 이메일/비밀번호 불일치, 기존 미인증 계정, 이용 제한 등을 구분하고 서버 로그에는 코드/상태만 기록합니다. 이메일·비밀번호·인증 토큰은 기록하지 않습니다.
