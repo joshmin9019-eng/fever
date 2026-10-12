@@ -31,6 +31,7 @@ const backend=createServer(async(req,res)=>{
  else if(path==='/rest/v1/ideal_type_options')output([{id:idealId,category:'분위기',label:'고양이상',sort_order:1,is_active:true}]);
  else if(path==='/rest/v1/profile_ideal_types')output(idealSave?[{option_id:idealId,ideal_type_options:{category:'분위기',label:'고양이상',sort_order:1}}]:[]);
  else if(path==='/rest/v1/question_categories')output([{id:categoryId,name:'우리 이야기',is_active:true,sort_order:0}]);
+ else if(path==='/rest/v1/daily_attendance')output(answerSave?[{question_id:questionId}]:[]);
  else if(path==='/rest/v1/questions'){
   if(req.method==='HEAD'){res.setHeader('content-range','0-0/1');res.end();}
   else output([question]);
@@ -71,6 +72,9 @@ try{
  await page.getByRole('heading',{name:'나의 프로필'}).waitFor();
  assert.equal(await page.locator('.gender-badge.gender-female').count(),1);
  await page.goto('http://127.0.0.1:3106/');
+ await page.getByRole('heading',{name:'오늘의 질문'}).waitFor();
+ await page.getByText('오늘 출석 전').waitFor();
+ assert.equal(await page.getByRole('link',{name:/답하고 출석하기/}).count(),1);
  assert.equal(await page.getByRole('link',{name:/내 답변 채우기/}).count(),1);
  assert.equal(await page.getByRole('link',{name:/대화 발견/}).count(),1);
  assert.equal(await page.getByRole('link',{name:/회원 찾기/}).count(),1);
@@ -101,6 +105,8 @@ try{
  await page.getByText('답변을 저장했습니다.').waitFor();
  assert.equal(answerSave.p_question_id,questionId);
  assert.equal(answerSave.p_text_value,'저는 책을 좋아하는 사람입니다.');
+ await page.goto('http://127.0.0.1:3106/');
+ await page.getByText('오늘 출석 완료').waitFor();
  await page.goto('http://127.0.0.1:3106/members');
  await page.getByText('민지').waitFor();
  assert.equal(await page.locator('.member-card.gender-female').count(),1);
@@ -116,7 +122,7 @@ try{
  await page.getByRole('button',{name:'질문 등록'}).click();
  await page.getByText('질문을 등록했습니다.').waitFor();
  assert.deepEqual(questionCreated.p_option_labels,['아침형','저녁형']);
- console.log('Member features passed (mobile): distinct home menus, conversation discovery, profile and ideal-type save/display, question answer, member search, public answer page, and admin question setup. Backend responses are fixtures.');
+ console.log('Member features passed (mobile): daily question/check-in display, distinct home menus, conversation discovery, profile and ideal-type save/display, question answer, member search, public answer page, and admin question setup. Backend responses are fixtures.');
 }finally{
  if(browser)await browser.close();
  next.kill('SIGTERM');
