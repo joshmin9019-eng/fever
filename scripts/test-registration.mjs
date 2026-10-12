@@ -32,7 +32,7 @@ const backend=createServer(async(req,res)=>{
  else if(req.url.startsWith('/rest/v1/user_roles'))res.end('[]');
  else if(req.url.startsWith('/storage/v1/object/avatars/')){uploadRequests++;res.end(JSON.stringify({Key:req.url.slice('/storage/v1/object/'.length)}));}
  else if(req.url==='/rest/v1/rpc/submit_membership'){
-  submission=JSON.parse(body);assert.equal(submission.p_nickname,'피버테스트');assert.equal(submission.p_terms_version,'2026-10-12-v1');assert.equal(submission.p_privacy_version,'2026-10-12-v1');registered=true;res.end('null');
+  submission=JSON.parse(body);assert.equal(submission.p_nickname,'피버테스트');assert.equal(submission.p_terms_version,'2026-10-12-v2');assert.equal(submission.p_privacy_version,'2026-10-12-v2');assert.equal(submission.p_gender,'female');assert.equal(submission.p_birth_year,1995);assert.equal(submission.p_birth_month,7);assert.equal(submission.p_birth_day,14);registered=true;res.end('null');
  }else{res.statusCode=404;res.end(JSON.stringify({error:'Unsupported fixture route'}));}
 });
 await new Promise(resolve=>backend.listen(0,'127.0.0.1',resolve));
@@ -67,7 +67,10 @@ try{
   await page.waitForURL('**/pending');
   await page.getByRole('heading',{name:'나를 소개해 주세요'}).waitFor();
   await page.getByLabel('닉네임',{exact:true}).fill('피버테스트');
-  await page.getByLabel('출생연도').fill('1995');
+  await page.getByLabel('태어난 연도').fill('1995');
+  await page.getByLabel('성별 표시').selectOption('female');
+  await page.getByLabel('태어난 월').selectOption('7');
+  await page.getByLabel('태어난 일').selectOption('14');
   await page.getByLabel('거주지역').fill('서울');
   await page.getByLabel('프로필 사진',{exact:true}).setInputFiles({name:'avatar.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aL1sAAAAASUVORK5CYII=','base64')});
   const submit=page.getByRole('button',{name:'가입 승인 신청하기'});

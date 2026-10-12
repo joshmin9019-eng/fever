@@ -43,6 +43,7 @@ const backend=createServer(async(req,res)=>{
   output(selfSave?(url.searchParams.get('user_id')?.startsWith('in.')||url.searchParams.get('option_id')?.startsWith('in.')?[item(id),item(otherId),item(thirdId)]:[item(url.searchParams.get('user_id')?.includes(otherId)?otherId:id)]):[]);
  }
  else if(path==='/rest/v1/profile_birthdates')output(birthSave?[{birth_month:birthSave.p_month,birth_day:birthSave.p_day}]:[]);
+ else if(path==='/rest/v1/rpc/month_birthdays')output([{user_id:otherId,nickname:'준호',birth_day:14,gender:'male'}]);
  else if(path==='/rest/v1/question_categories')output([{id:categoryId,name:'우리 이야기',is_active:true,sort_order:0}]);
  else if(path==='/rest/v1/daily_attendance')output(answerSave?[{question_id:questionId}]:[]);
  else if(path==='/rest/v1/questions'){
@@ -91,7 +92,12 @@ try{
  await page.locator('.member-detail').getByText('MBTI INFP').waitFor();
  await page.goto('http://127.0.0.1:3106/');
  await page.getByRole('heading',{name:'오늘의 질문'}).waitFor();
- assert.deepEqual(await page.locator('.home-page > section').evaluateAll(nodes=>nodes.slice(0,4).map(node=>node.classList[0])),['home-identity','daily-home','home-menu','today-answer']);
+ assert.equal(await page.locator('.home-identity.gender-female .member-name-ring').count(),1);
+ assert.equal(await page.locator('.home-identity .member-name-ring').evaluate(node=>getComputedStyle(node).borderTopColor),'rgb(213, 83, 114)');
+ assert.deepEqual(await page.locator('.home-page > section').evaluateAll(nodes=>nodes.slice(0,4).map(node=>node.classList[0])),['home-identity','daily-home','home-menu','birthday-section']);
+ assert.equal(await page.locator('.birthday-person.gender-male').count(),1);
+ assert.equal(await page.getByRole('heading',{name:'오늘의 답변'}).count(),0);
+ await page.locator('.identity-main').click();await page.waitForURL('**/profile');await page.goto('http://127.0.0.1:3106/');
  await page.getByText('오늘 출석 전').waitFor();
  assert.equal(await page.getByRole('link',{name:/답하고 출석하기/}).count(),1);
  assert.equal(await page.locator('.home-menu-card').count(),4);
@@ -106,17 +112,15 @@ try{
  assert.ok(profileGap>=20,'profile and daily question have visible spacing');
  const fortuneLink=page.getByRole('link',{name:/오늘의 운세/});
  await fortuneLink.scrollIntoViewIfNeeded();
- const fortuneBox=await fortuneLink.boundingBox();
- await page.mouse.move(fortuneBox.x+fortuneBox.width/2,fortuneBox.y+fortuneBox.height/2);
- await page.mouse.down();
+ await fortuneLink.evaluate(node=>node.classList.add('is-opening'));
  await page.waitForTimeout(220);
  assert.notEqual(await fortuneLink.evaluate(node=>getComputedStyle(node).transform),'none','card gives pressed feedback');
- await page.mouse.up();
+ await fortuneLink.click();
  await page.waitForURL('**/fortune');
  await page.getByRole('heading',{name:'오늘의 별자리 운세'}).waitFor();
  await page.getByLabel('태어난 월').selectOption('7');
  await page.getByLabel('태어난 일').selectOption('14');
- await page.getByRole('checkbox',{name:/선택 입력한 월·일/}).check();
+ await page.getByRole('checkbox',{name:/운세를 보고 이달의 생일자/}).check();
  await page.getByRole('button',{name:'생일 저장하고 운세 보기'}).click();
  await page.getByRole('heading',{name:/게자리/}).waitFor();
  assert.equal(birthSave.p_month,7);
@@ -142,10 +146,12 @@ try{
  await page.goto('http://127.0.0.1:3106/profile');
  await page.getByRole('link',{name:'프로필 수정'}).click();
  await page.getByLabel('거주지역').fill('부산');
+ await page.getByLabel('성별 표시').selectOption('female');
  await page.getByLabel('여행').check();
  await page.getByRole('button',{name:'프로필 저장'}).click();
  await page.getByText('프로필을 저장했습니다.').waitFor();
  assert.equal(profileSave.p_region,'부산');
+ assert.equal(profileSave.p_gender,'female');
  assert.deepEqual(profileSave.p_interest_ids,[categoryId]);
  await page.locator('input[name="idealTypeId"]').check();
  await page.getByRole('button',{name:'이상형 취향 저장'}).click();
@@ -173,6 +179,8 @@ try{
  await page.goto('http://127.0.0.1:3106/members');
  await page.getByText('민지').waitFor();
  assert.equal(await page.locator('.member-card.gender-female').count(),2);
+ assert.equal(await page.locator('.member-card.gender-male strong').first().evaluate(node=>getComputedStyle(node).borderTopColor),'rgb(66, 136, 196)');
+ assert.equal(await page.locator('.member-card.gender-female strong').first().evaluate(node=>getComputedStyle(node).borderTopColor),'rgb(213, 83, 114)');
  await page.locator('.member-card').getByText('MBTI INFP').waitFor();
  await page.locator('.member-card.gender-male').getByText('서로 취향이 통해요').waitFor();
  assert.equal(await page.locator('.member-card.gender-female').getByText('서로 취향이 통해요').count(),0);
@@ -208,6 +216,10 @@ try{
  await page.getByText('2개 질문을 등록했습니다.').waitFor();
  assert.equal(bulkCreated.length,3);
  assert.deepEqual(bulkCreated.slice(1).map(item=>item.p_type).sort(),['single_choice','text']);
+ profile.gender=null;
+ await page.goto('http://127.0.0.1:3106/');
+ await page.getByText('성별 표시를 선택하면 이름에 색상이 들어가요 →').waitFor();
+ assert.equal(await page.locator('.home-identity.gender-neutral').count(),1);
  console.log('Member features passed (mobile): daily check-in, private horoscope birthday save/delete, profile styles, MBTI name display, MBTI search, mutual style filtering, conversation starters, answers, and admin bulk questions. Backend responses are fixtures.');
 }finally{
  if(browser)await browser.close();

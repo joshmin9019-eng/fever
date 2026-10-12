@@ -17,7 +17,7 @@ export function ProfileEditForms({ profile, interests, selected, pendingName, id
    <label htmlFor="birthYear">출생연도</label><input id="birthYear" name="birthYear" type="number" min="1" required defaultValue={profile.birth_year ?? ""}/>
    <label htmlFor="region">거주지역</label><input id="region" name="region" required maxLength={100} defaultValue={profile.region ?? ""}/>
    <label htmlFor="gender">성별 표시</label><select id="gender" name="gender" defaultValue={profile.gender ?? ""}><option value="">표시하지 않음</option><option value="male">남</option><option value="female">여</option></select>
-   <small>남·여는 회원 카드에서 서로 다른 색으로 표시됩니다.</small>
+   <small>남은 파랑, 여는 빨강 계열 테두리로 메인·내 프로필·회원 찾기에 표시됩니다. ‘표시하지 않음’은 중립색입니다.</small>
    <label htmlFor="job">직업</label><input id="job" name="job" maxLength={80} defaultValue={profile.job ?? ""}/>
    <label htmlFor="mbti">MBTI</label><select id="mbti" name="mbti" defaultValue={profile.mbti ?? ""}>{mbtiValues.map(value=><option key={value} value={value}>{value || "선택 안 함"}</option>)}</select>
    <label htmlFor="bio">자기소개</label><textarea id="bio" name="bio" maxLength={500} defaultValue={profile.bio ?? ""}/>
