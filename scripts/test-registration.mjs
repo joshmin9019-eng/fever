@@ -6,11 +6,15 @@ const id='00000000-0000-0000-0000-000000000021';
 const user={id,aud:'authenticated',role:'authenticated',email:'registration@example.test',email_confirmed_at:new Date().toISOString(),app_metadata:{provider:'email',providers:['email']},user_metadata:{},created_at:new Date().toISOString()};
 const b64=value=>Buffer.from(JSON.stringify(value)).toString('base64url');
 const accessToken=`${b64({alg:'HS256',typ:'JWT'})}.${b64({sub:id,aud:'authenticated',role:'authenticated',exp:Math.floor(Date.now()/1000)+3600})}.test`;
-let registered=false,submission=null,signupRequests=0,uploadRequests=0,legacyAccount=false;
+let registered=false,submission=null,signupRequests=0,uploadRequests=0,legacyAccount=false,loginMode="invalid_credentials";
 const backend=createServer(async(req,res)=>{
  let body='';for await(const chunk of req)body+=chunk.toString();
  res.setHeader('content-type','application/json');
  if(req.url.startsWith('/auth/v1/signup')){signupRequests++;user.user_metadata=legacyAccount?{}:JSON.parse(body).data;res.end(JSON.stringify({access_token:accessToken,token_type:'bearer',expires_in:3600,refresh_token:'test-refresh-token',user}));}
+ else if(req.url.startsWith('/auth/v1/token')){
+  if(loginMode==='success')res.end(JSON.stringify({access_token:accessToken,token_type:'bearer',expires_in:3600,refresh_token:'test-refresh-token',user}));
+  else{res.statusCode=400;res.end(JSON.stringify({code:loginMode,error_code:loginMode,msg:'Fixture login failure'}));}
+ }
  else if(req.url.startsWith('/auth/v1/user'))res.end(JSON.stringify(user));
  else if(req.url.startsWith('/rest/v1/profiles'))res.end(JSON.stringify([{id,membership_status:registered?'pending_approval':'pending_email'}]));
  else if(req.url.startsWith('/rest/v1/user_roles'))res.end('[]');
@@ -67,8 +71,21 @@ try{
   await submit.click();await page.getByRole('heading',{name:'가입 승인 대기'}).waitFor();
   assert.ok(submission);await context.close();
  }
+ const loginContext=await browser.newContext();const loginPage=await loginContext.newPage();
+ await loginPage.goto('http://127.0.0.1:3102/login');
+ await loginPage.getByLabel('이메일',{exact:true}).fill(user.email);
+ await loginPage.getByLabel('비밀번호',{exact:true}).fill('Fever-test-password1');
+ await loginPage.getByRole('button',{name:'로그인',exact:true}).click();
+ await loginPage.getByRole('alert').filter({hasText:'invalid_credentials'}).waitFor();
+ assert.equal(await loginPage.getByLabel('이메일',{exact:true}).inputValue(),user.email);
+ assert.equal(await loginPage.getByLabel('비밀번호',{exact:true}).inputValue(),'Fever-test-password1');
+ loginMode='email_not_confirmed';await loginPage.getByRole('button',{name:'로그인',exact:true}).click();
+ await loginPage.getByRole('alert').filter({hasText:'email_not_confirmed'}).waitFor();
+ loginMode='success';await loginPage.getByRole('button',{name:'로그인',exact:true}).click();
+ await loginPage.waitForURL('**/pending');await loginPage.getByRole('heading',{name:'가입 승인 대기'}).waitFor();
+ await loginContext.close();
  assert.equal(signupRequests,3);assert.equal(uploadRequests,3);
  for(const path of ['/terms','/privacy']){const response=await fetch('http://127.0.0.1:3102'+path);assert.equal(response.status,200);assert.match(await response.text(),/FEVER 운영팀/);}
- console.log('Registration integration passed (mobile + desktop): direct signup session -> profile form without duplicate consents (legacy users give consent once) -> photo upload -> versioned RPC -> pending approval; public legal pages work. Auth/Storage responses are fixtures, not real account creation.');
+ console.log('Registration integration passed (mobile + desktop): direct signup session -> profile form without duplicate consents (legacy users give consent once) -> photo upload -> versioned RPC -> pending approval; login errors are distinguished, inputs survive errors, successful login routes correctly; public legal pages work. Auth/Storage responses are fixtures, not real account creation.');
 }catch(error){console.error(log.slice(-1500));throw error;}
 finally{await browser?.close();next.kill('SIGTERM');await new Promise(resolve=>backend.close(resolve));}
