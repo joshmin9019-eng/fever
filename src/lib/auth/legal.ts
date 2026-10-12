@@ -1,9 +1,15 @@
 import "server-only";
-export function legalConfig(){
- const termsUrl=process.env.FEVER_TERMS_URL ?? "";
- const privacyUrl=process.env.FEVER_PRIVACY_URL ?? "";
- const termsVersion=process.env.FEVER_TERMS_VERSION ?? "";
- const privacyVersion=process.env.FEVER_PRIVACY_VERSION ?? "";
- const validUrl=(url:string)=>{try{return new URL(url).protocol === "https:";}catch{return false;}};
- return {termsUrl,privacyUrl,termsVersion,privacyVersion,ready:Boolean(validUrl(termsUrl)&&validUrl(privacyUrl)&&termsVersion&&privacyVersion)};
+import { LEGAL_VERSION } from "@/lib/legal-content";
+export function legalConfig() {
+ const publicUrl = (value: string | undefined, fallback: string) => {
+  if (!value) return fallback;
+  try { return new URL(value).protocol === "https:" ? value : fallback; } catch { return fallback; }
+ };
+ return {
+  termsUrl: publicUrl(process.env.FEVER_TERMS_URL, "/terms"),
+  privacyUrl: publicUrl(process.env.FEVER_PRIVACY_URL, "/privacy"),
+  termsVersion: process.env.FEVER_TERMS_VERSION || LEGAL_VERSION,
+  privacyVersion: process.env.FEVER_PRIVACY_VERSION || LEGAL_VERSION,
+  ready: true,
+ };
 }

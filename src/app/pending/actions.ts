@@ -5,7 +5,6 @@ import {validNickname,validAvatar} from "@/lib/auth/registration";
 import {legalConfig} from "@/lib/auth/legal";
 export async function submitRegistration(_previous:{error:string},form:FormData):Promise<{error:string}>{
  const {supabase,user}=await requireUser();
- if(!user.email_confirmed_at)return {error:"이메일을 먼저 인증해 주세요."};
  const legal=legalConfig();if(!legal.ready)return {error:"약관과 개인정보 안내를 준비 중입니다."};
  const nickname=String(form.get("nickname")??"");const birthYear=Number(form.get("birthYear"));const region=String(form.get("region")??"").trim();
  const year=Number(new Intl.DateTimeFormat('en',{year:'numeric',timeZone:'Asia/Seoul'}).format(new Date()));

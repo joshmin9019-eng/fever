@@ -4,7 +4,7 @@ test('mobile home and disabled authentication are honest without configuration',
  await page.goto('/');await expect(page.getByRole('heading',{name:'우리 사이, 조금 더 가까이.'})).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.getByRole('link',{name:'우리 모임 함께하기'}).click();await expect(page.getByRole('heading',{name:'FEVER 함께하기'})).toBeVisible();
- await expect(page.getByRole('button',{name:'이메일 인증 시작하기'})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'가입정보 입력하기'})).toBeDisabled();
  await page.getByRole('navigation').getByRole('link',{name:'벙',exact:true}).click();await expect(page).toHaveURL(/\/login/);
  await expect(page.getByRole('button',{name:'로그인',exact:true})).toBeDisabled();
  expect(errors).toEqual([]);

@@ -1,5 +1,7 @@
 # FEVER (피버) — Product Requirements Document v1.1
 
+> 최신 변경: 별도 이메일 인증 없이 계정 생성→가입정보 입력→관리자 승인. 기본 안내 및 동의, 탈퇴 정보 보유 정책은 [PHASE2_DECISIONS.md](PHASE2_DECISIONS.md)의 추가 변경을 우선합니다.
+
 > 2026-10-12 가입 정책 추가 확정: [PHASE2_DECISIONS.md](PHASE2_DECISIONS.md). 닉네임·사진 규격·출생연도/지역 필수 여부는 해당 문서 기준을 적용합니다. 아래 원본 기획 내용은 보존합니다.
 
 - 문서 상태: 개발 착수용 통합 초안

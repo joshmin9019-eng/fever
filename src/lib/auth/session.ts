@@ -14,7 +14,6 @@ export async function requireUser() {
 }
 export async function requireMember(requirement: Role = "member") {
  const { supabase, user } = await requireUser();
- if (!user.email_confirmed_at) redirect("/pending");
  const { data: profile, error } = await supabase.from("profiles").select("membership_status").eq("id",user.id).maybeSingle();
  if (error) redirect("/auth/error?reason=database");
  const {data: roles, error: roleError} = await supabase.from("user_roles").select("role").eq("user_id",user.id);
