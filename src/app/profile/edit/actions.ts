@@ -50,3 +50,13 @@ export async function requestNickname(_previous: { error: string; success: strin
  revalidatePath("/profile/edit");
  return { error: "", success: "닉네임 변경을 신청했습니다. 승인 전까지 기존 이름이 표시됩니다." };
 }
+
+export async function saveIdealTypes(_previous: { error: string; success: string }, form: FormData): Promise<{ error: string; success: string }> {
+ const { supabase } = await requireMember();
+ const ids = form.getAll('idealTypeId').map(String);
+ if (ids.length > 30 || ids.some(id => !/^[0-9a-f-]{36}$/i.test(id))) return { error: '선택한 항목을 확인해 주세요.', success: '' };
+ const { error } = await supabase.rpc('save_my_ideal_types', { p_option_ids: ids });
+ if (error) return { error: '이상형 취향을 저장하지 못했습니다. 다시 시도해 주세요.', success: '' };
+ revalidatePath('/profile'); revalidatePath('/members');
+ return { error: '', success: '이상형 취향을 저장했습니다.' };
+}

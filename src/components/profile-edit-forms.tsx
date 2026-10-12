@@ -1,13 +1,15 @@
 "use client";
 import { useActionState } from "react";
-import { saveProfile, requestNickname } from "@/app/profile/edit/actions";
+import { saveProfile, requestNickname, saveIdealTypes } from "@/app/profile/edit/actions";
 
 type Profile = { nickname: string | null; birth_year: number | null; region: string | null; gender: string | null; job: string | null; mbti: string | null; bio: string | null };
 type Interest = { id: string; label: string };
+type IdealOption = { id: string; category: string; label: string };
 const mbtiValues = ["", "INTJ", "INTP", "ENTJ", "ENTP", "INFJ", "INFP", "ENFJ", "ENFP", "ISTJ", "ISFJ", "ESTJ", "ESFJ", "ISTP", "ISFP", "ESTP", "ESFP"];
-export function ProfileEditForms({ profile, interests, selected, pendingName }: { profile: Profile; interests: Interest[]; selected: string[]; pendingName?: string }) {
+export function ProfileEditForms({ profile, interests, selected, pendingName, idealOptions, selectedIdealTypes }: { profile: Profile; interests: Interest[]; selected: string[]; pendingName?: string; idealOptions: IdealOption[]; selectedIdealTypes: string[] }) {
  const [state, action, pending] = useActionState(saveProfile, { error: "", success: "" });
  const [nameState, nameAction, namePending] = useActionState(requestNickname, { error: "", success: "" });
+ const [idealState, idealAction, idealPending] = useActionState(saveIdealTypes, { error: "", success: "" });
  return <div className="profile-edit-grid">
   <form action={action} className="auth-form profile-form">
    <h2>기본 정보</h2>
@@ -23,12 +25,16 @@ export function ProfileEditForms({ profile, interests, selected, pendingName }: 
    {state.error&&<p className="form-error" role="alert">{state.error}</p>}{state.success&&<p className="notice" role="status">{state.success}</p>}
    <button className="button green" disabled={pending}>프로필 저장</button>
   </form>
-  <form action={nameAction} className="auth-form profile-form">
+  <div className="profile-side-forms"><form action={idealAction} className="auth-form profile-form ideal-form"><span className="eyebrow dark">IDEAL TYPE</span><h2>내가 끌리는 스타일</h2><p>마음이 가는 분위기와 성격을 골라 주세요. 승인된 회원에게 공개됩니다.</p>
+   {['분위기','체형','성향','성격'].map(category=><fieldset className="interest-field" key={category}><legend>{category}</legend><div className="interest-options">{idealOptions.filter(item=>item.category===category).map(item=><label key={item.id}><input name="idealTypeId" type="checkbox" value={item.id} defaultChecked={selectedIdealTypes.includes(item.id)}/>{item.label}</label>)}</div></fieldset>)}
+   {idealState.error&&<p className="form-error" role="alert">{idealState.error}</p>}{idealState.success&&<p className="notice" role="status">{idealState.success}</p>}
+   <button className="button green" disabled={idealPending}>이상형 취향 저장</button>
+  </form><form action={nameAction} className="auth-form profile-form">
    <h2>닉네임 변경</h2><p>현재 닉네임: <strong>{profile.nickname}</strong></p>
    {pendingName&&<p className="notice">{pendingName} 변경 요청이 승인 대기 중입니다.</p>}
    <label htmlFor="nickname">새 닉네임</label><input id="nickname" name="nickname" minLength={2} maxLength={20} pattern="[가-힣A-Za-z0-9_]{2,20}" required disabled={!!pendingName}/>
    {nameState.error&&<p className="form-error" role="alert">{nameState.error}</p>}{nameState.success&&<p className="notice" role="status">{nameState.success}</p>}
    <button className="button green" disabled={namePending||!!pendingName}>변경 승인 요청</button>
-  </form>
+  </form></div>
  </div>;
 }
