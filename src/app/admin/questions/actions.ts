@@ -1,6 +1,7 @@
 "use server";
 import {revalidatePath} from 'next/cache';
 import {requireMember} from '@/lib/auth/session';
+import {parseBulkQuestions} from '@/lib/questions/bulk';
 type State={error:string;success:string};
 export async function createCategory(_previous:State,form:FormData):Promise<State>{
  const {supabase}=await requireMember('admin');const name=String(form.get('name')??'').trim();
@@ -19,6 +20,34 @@ export async function createQuestion(_previous:State,form:FormData):Promise<Stat
  const {error}=await supabase.rpc('create_question',{p_category_id:category,p_title:title,p_type:type,p_option_labels:options});
  if(error)return {error:'질문을 등록하지 못했습니다. 카테고리와 선택지를 확인해 주세요.',success:''};
  revalidatePath('/admin/questions');revalidatePath('/questions');return {error:'',success:'질문을 등록했습니다.'};
+}
+export async function createQuestionsBulk(_previous:State,form:FormData):Promise<State>{
+ const {supabase}=await requireMember('admin');
+ const category=String(form.get('categoryId')??'');
+ const source=String(form.get('bulkQuestions')??'');
+ if(!/^[0-9a-f-]{36}$/i.test(category))return {error:'카테고리를 먼저 선택해 주세요.',success:''};
+ const parsed=parseBulkQuestions(source);
+ if(!parsed.questions.length)return {error:parsed.errors[0]??'질문을 한 줄 이상 입력해 주세요.',success:''};
+ if(parsed.errors.length)return {error:parsed.errors.slice(0,3).join(' '),success:''};
+ const {data:existing,error:lookupError}=await supabase.from('questions').select('title').eq('category_id',category);
+ if(lookupError)return {error:'기존 질문을 확인하지 못했습니다. 다시 시도해 주세요.',success:''};
+ const normalize=(title:string)=>title.replace(/\s+/g,' ').trim().toLocaleLowerCase('ko-KR');
+ const titles=new Set((existing??[]).map(row=>normalize(row.title)));
+ const pending=parsed.questions.filter(item=>!titles.has(normalize(item.title)));
+ const skipped=parsed.questions.length-pending.length;
+ if(!pending.length)return {error:'',success:`새 질문이 없습니다. 이미 등록된 ${skipped}개를 건너뛰었습니다.`};
+ let created=0;
+ const failed:number[]=[];
+ for(let index=0;index<pending.length;index+=5){
+  const batch=pending.slice(index,index+5);
+  const outcomes=await Promise.all(batch.map(item=>supabase.rpc('create_question',{p_category_id:category,p_title:item.title,p_type:item.type,p_option_labels:item.options})));
+  outcomes.forEach((result,offset)=>{if(result.error)failed.push(batch[offset].line);else created++;});
+  if(failed.length)break;
+ }
+ if(created){revalidatePath('/');revalidatePath('/admin/questions');revalidatePath('/questions');}
+ const success=created?`${created}개 질문을 등록했습니다.${skipped?` 기존 ${skipped}개는 건너뛰었습니다.`:''}`:'';
+ if(failed.length)return {error:`${failed.join(', ')}행 등록에 실패했습니다. 이미 등록된 행은 건너뛰고 다시 시도할 수 있습니다.`,success};
+ return {error:'',success};
 }
 export async function setQuestionActive(_previous:State,form:FormData):Promise<State>{
  const {supabase}=await requireMember('admin');const id=String(form.get('questionId')??'');const active=String(form.get('active')??'');

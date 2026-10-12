@@ -1,6 +1,3 @@
-export function genderLabel(gender: string | null | undefined) {
- return gender === "male" ? "남" : gender === "female" ? "여" : "미설정";
-}
 export function genderClass(gender: string | null | undefined) {
  return gender === "male" ? "gender-male" : gender === "female" ? "gender-female" : "gender-neutral";
 }
